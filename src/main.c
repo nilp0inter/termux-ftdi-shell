@@ -6,6 +6,7 @@
 #include <pty.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <poll.h>
 
 #define BAUDRATE 115200
 
