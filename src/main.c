@@ -81,15 +81,17 @@ int main(int argc, char **argv) {
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    // Assign the device handle to the ftdi context
-    ftdi->usb_dev = usb_handle;
-    ftdi->type = TYPE_R; // Assuming a modern FTDI chip
-    ftdi->interface = INTERFACE_A; // Assuming interface A
+    if (ftdi_usb_open_dev(ftdi, usb_dev) < 0) {
+        fprintf(stderr, "ftdi_usb_open_dev failed: %s\n", ftdi_get_error_string(ftdi));
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
 
     // Configure FTDI device for serial communication
     if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
         fprintf(stderr, "ftdi_set_baudrate failed: %s\n", ftdi_get_error_string(ftdi));
-        ftdi->usb_dev = NULL;
         ftdi_free(ftdi);
         libusb_close(usb_handle);
         libusb_exit(usb_context);
@@ -97,7 +99,6 @@ int main(int argc, char **argv) {
     }
     if (ftdi_set_line_property(ftdi, BITS_8, STOP_BIT_1, NONE) < 0) {
         fprintf(stderr, "ftdi_set_line_property failed: %s\n", ftdi_get_error_string(ftdi));
-        ftdi->usb_dev = NULL;
         ftdi_free(ftdi);
         libusb_close(usb_handle);
         libusb_exit(usb_context);
@@ -105,7 +106,6 @@ int main(int argc, char **argv) {
     }
     if (ftdi_setflowctrl(ftdi, SIO_DISABLE_FLOW_CTRL) < 0) {
         fprintf(stderr, "ftdi_setflowctrl failed: %s\n", ftdi_get_error_string(ftdi));
-        ftdi->usb_dev = NULL;
         ftdi_free(ftdi);
         libusb_close(usb_handle);
         libusb_exit(usb_context);
