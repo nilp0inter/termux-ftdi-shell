@@ -4,7 +4,7 @@
 pkg update && pkg upgrade -y
 
 # Install dependencies
-pkg install git clang make cmake libusb build-essential libconfuse -y
+pkg install git clang make cmake libusb build-essential libconfuse termux-api -y
 
 # Clone and build libftdi
 if [ -d "libftdi" ]; then
