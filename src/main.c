@@ -3,6 +3,11 @@
 #include <assert.h>
 #include <libusb-1.0/libusb.h>
 #include <ftdi.h>
+#include <pty.h>
+#include <unistd.h>
+#include <sys/select.h>
+
+#define BAUDRATE 115200
 
 int main(int argc, char **argv) {
     libusb_context *usb_context;
@@ -14,6 +19,8 @@ int main(int argc, char **argv) {
     int ret;
     struct ftdi_context *ftdi;
     struct ftdi_version_info version;
+    int pty_master;
+    pid_t pid;
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <file_descriptor>\n", argv[0]);
@@ -78,19 +85,96 @@ int main(int argc, char **argv) {
     ftdi->type = TYPE_R; // Assuming a modern FTDI chip
     ftdi->interface = INTERFACE_A; // Assuming interface A
 
-    // Read out FTDIChip-ID of R type chips
-    if (ftdi->type == TYPE_R) {
-        unsigned int chipid;
-        if (ftdi_read_chipid(ftdi, &chipid) == 0) {
-            fprintf(stderr, "FTDI chipid: %X\n", chipid);
-        } else {
-            fprintf(stderr, "ftdi_read_chipid failed: %s\n", ftdi_get_error_string(ftdi));
+    // Configure FTDI device for serial communication
+    if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
+        fprintf(stderr, "ftdi_set_baudrate failed: %s\n", ftdi_get_error_string(ftdi));
+        ftdi->usb_dev = NULL;
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+    if (ftdi_set_line_property(ftdi, BITS_8, STOP_BIT_1, NONE) < 0) {
+        fprintf(stderr, "ftdi_set_line_property failed: %s\n", ftdi_get_error_string(ftdi));
+        ftdi->usb_dev = NULL;
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+    if (ftdi_setflowctrl(ftdi, SIO_DISABLE_FLOW_CTRL) < 0) {
+        fprintf(stderr, "ftdi_setflowctrl failed: %s\n", ftdi_get_error_string(ftdi));
+        ftdi->usb_dev = NULL;
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+
+    // Create a pseudo-terminal and fork
+    pid = forkpty(&pty_master, NULL, NULL, NULL);
+    if (pid < 0) {
+        perror("forkpty");
+        ftdi->usb_dev = NULL;
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+
+    // Child process: execute a shell
+    if (pid == 0) {
+        char *shell = "/bin/sh";
+        char *args[] = {shell, NULL};
+        execv(shell, args);
+        perror("execv"); // execv only returns on error
+        exit(1);
+    }
+
+    // Parent process: communication loop
+    fprintf(stderr, "Starting shell...\n");
+    while (1) {
+        fd_set read_fds;
+        int max_fd = 0;
+        int activity;
+
+        FD_ZERO(&read_fds);
+        FD_SET(pty_master, &read_fds);
+        max_fd = pty_master;
+
+        // Add FTDI device to the set
+        // Note: libftdi uses libusb's event-driven API, but for simplicity, we'll poll
+        // This is not the most efficient way, but it's easier to implement
+        unsigned char ftdi_buf[1024];
+        int ftdi_ret = ftdi_read_data(ftdi, ftdi_buf, sizeof(ftdi_buf));
+        if (ftdi_ret > 0) {
+            write(pty_master, ftdi_buf, ftdi_ret);
+        }
+
+        FD_SET(pty_master, &read_fds);
+
+        activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+
+        if ((activity < 0) && (errno != EINTR)) {
+            perror("select");
+            break;
+        }
+
+        if (FD_ISSET(pty_master, &read_fds)) {
+            char pty_buf[1024];
+            int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
+            if (pty_ret > 0) {
+                ftdi_write_data(ftdi, pty_buf, pty_ret);
+            } else {
+                break; // Shell has exited
+            }
         }
     }
 
-    // ftdi_usb_close is not needed as we are not opening it with ftdi_usb_open
+    fprintf(stderr, "Shell exited.\n");
+
+    // Cleanup
     ftdi->usb_dev = NULL;
-    
     ftdi_free(ftdi);
     libusb_close(usb_handle);
     libusb_exit(usb_context);
