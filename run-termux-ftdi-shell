@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Find the USB device path
+DEVICE=$(termux-usb -l | awk 'NR==2 {print $1}')
+
+if [ -z "$DEVICE" ]; then
+    echo "No USB device found."
+    exit 1
+fi
+
+echo "Found USB device: $DEVICE"
+
+# Request permission and execute the command
+termux-usb -r -e ./termux-ftdi-shell $DEVICE
