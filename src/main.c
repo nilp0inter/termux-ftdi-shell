@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     struct libusb_device_descriptor desc;
     unsigned char buffer[256];
     int fd;
-    int ret;
+
     struct ftdi_context *ftdi;
     struct ftdi_version_info version;
     int pty_master;
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
             char pty_buf[1024];
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
-                ftdi_write_data(ftdi, pty_buf, pty_ret);
+                ftdi_write_data(ftdi, (const unsigned char *)pty_buf, pty_ret);
             } else {
                 break; // Shell has exited
             }
