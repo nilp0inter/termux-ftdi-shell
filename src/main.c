@@ -47,17 +47,17 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    printf("Vendor ID: %04x\n", desc.idVendor);
-    printf("Product ID: %04x\n", desc.idProduct);
+    fprintf(stderr, "Vendor ID: %04x\n", desc.idVendor);
+    fprintf(stderr, "Product ID: %04x\n", desc.idProduct);
 
     if (libusb_get_string_descriptor_ascii(usb_handle, desc.iManufacturer, buffer, 256) >= 0) {
-        printf("Manufacturer: %s\n", buffer);
+        fprintf(stderr, "Manufacturer: %s\n", buffer);
     }
     if (libusb_get_string_descriptor_ascii(usb_handle, desc.iProduct, buffer, 256) >= 0) {
-        printf("Product: %s\n", buffer);
+        fprintf(stderr, "Product: %s\n", buffer);
     }
     if (libusb_get_string_descriptor_ascii(usb_handle, desc.iSerialNumber, buffer, 256) >= 0) {
-        printf("Serial No: %s\n", buffer);
+        fprintf(stderr, "Serial No: %s\n", buffer);
     }
 
     // Initialize libftdi
@@ -69,38 +69,27 @@ int main(int argc, char **argv) {
     }
 
     version = ftdi_get_library_version();
-    printf("Initialized libftdi %s (major: %d, minor: %d, micro: %d, snapshot ver: %s)\n",
+    fprintf(stderr, "Initialized libftdi %s (major: %d, minor: %d, micro: %d, snapshot ver: %s)\n",
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    // Open FTDI device using the existing libusb device
-    if ((ret = ftdi_usb_open_dev(ftdi, usb_dev)) < 0) {
-        fprintf(stderr, "unable to open ftdi device: %d (%s)\n", ret, ftdi_get_error_string(ftdi));
-        ftdi_free(ftdi);
-        libusb_close(usb_handle);
-        libusb_exit(usb_context);
-        return EXIT_FAILURE;
-    }
+    // Assign the device handle to the ftdi context
+    ftdi->usb_dev = usb_handle;
+    ftdi->type = TYPE_R; // Assuming a modern FTDI chip
+    ftdi->interface = INTERFACE_A; // Assuming interface A
 
     // Read out FTDIChip-ID of R type chips
     if (ftdi->type == TYPE_R) {
         unsigned int chipid;
         if (ftdi_read_chipid(ftdi, &chipid) == 0) {
-            printf("FTDI chipid: %X\n", chipid);
+            fprintf(stderr, "FTDI chipid: %X\n", chipid);
         } else {
-            fprintf(stderr, "ftdi_read_chipid failed\n");
+            fprintf(stderr, "ftdi_read_chipid failed: %s\n", ftdi_get_error_string(ftdi));
         }
     }
 
-    // Close FTDI device
-    if ((ret = ftdi_usb_close(ftdi)) < 0) {
-        fprintf(stderr, "unable to close ftdi device: %d (%s)\n", ret, ftdi_get_error_string(ftdi));
-        ftdi_free(ftdi);
-        libusb_close(usb_handle);
-        libusb_exit(usb_context);
-        return EXIT_FAILURE;
-    }
-
+    // ftdi_usb_close is not needed as we are not opening it with ftdi_usb_open
+    
     ftdi_free(ftdi);
     libusb_close(usb_handle);
     libusb_exit(usb_context);
