@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
         int ftdi_ret = ftdi_read_data(ftdi, ftdi_buf, sizeof(ftdi_buf));
         if (ftdi_ret > 0) {
             fprintf(stderr, "Read %d bytes from FTDI\n", ftdi_ret);
-            write(pty_master, ftdi_buf, ftdi_ret);
+            // write(pty_master, ftdi_buf, ftdi_ret);
         }
 
         FD_SET(pty_master, &read_fds);
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
                 fprintf(stderr, "Read %d bytes from PTY\n", pty_ret);
-                ftdi_write_data(ftdi, (const unsigned char *)pty_buf, pty_ret);
+                // ftdi_write_data(ftdi, (const unsigned char *)pty_buf, pty_ret);
             } else {
                 break; // Shell has exited
             }
