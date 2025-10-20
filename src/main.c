@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
     }
 
     // ftdi_usb_close is not needed as we are not opening it with ftdi_usb_open
+    ftdi->usb_dev = NULL;
     
     ftdi_free(ftdi);
     libusb_close(usb_handle);
