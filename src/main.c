@@ -81,8 +81,8 @@ int main(int argc, char **argv) {
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    if (ftdi_usb_open_dev(ftdi, usb_dev) < 0) {
-        fprintf(stderr, "ftdi_usb_open_dev failed: %s\n", ftdi_get_error_string(ftdi));
+    if (ftdi_usb_open_from_device_handle(ftdi, usb_handle) < 0) {
+        fprintf(stderr, "ftdi_usb_open_from_device_handle failed: %s\n", ftdi_get_error_string(ftdi));
         ftdi_free(ftdi);
         libusb_close(usb_handle);
         libusb_exit(usb_context);
