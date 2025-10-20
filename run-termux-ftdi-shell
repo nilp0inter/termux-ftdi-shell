@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Find the USB device path
-DEVICE=$(termux-usb -l | awk 'NR==2 {print $1}')
+DEVICE=$(termux-usb -l | jq -r '.[0]')
 
 if [ -z "$DEVICE" ]; then
     echo "No USB device found."
