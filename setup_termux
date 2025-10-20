@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Update and upgrade packages
+pkg update && pkg upgrade -y
+
+# Install dependencies
+pkg install git clang make cmake libusb build-essential -y
+
+# Clone and build libftdi
+if [ -d "libftdi" ]; then
+    echo "libftdi directory already exists. Skipping clone."
+else
+    git clone git://developer.intra2net.com/libftdi
+fi
+
+cd libftdi
+mkdir -p build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=$PREFIX ..
+make
+make install

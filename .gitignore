@@ -1,0 +1,14 @@
+# Binaries
+*.o
+*.so
+*.a
+*.out
+
+# Build artifacts
+termux-ftdi-shell
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
