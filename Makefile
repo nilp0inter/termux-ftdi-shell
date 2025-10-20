@@ -1,7 +1,7 @@
 PREFIX?=/data/data/com.termux/files/usr
 CC?=clang
 
-CFLAGS+=-I$(PREFIX)/include -Wall -Wextra -pedantic
+CFLAGS+=-I$(PREFIX)/include -I$(PREFIX)/include/libftdi1 -Wall -Wextra -pedantic
 LDFLAGS+=-L$(PREFIX)/lib -lftdi1 -lusb-1.0
 
 SRC = $(wildcard src/*.c)
