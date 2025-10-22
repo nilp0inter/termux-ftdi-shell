@@ -190,7 +190,6 @@ int main(int argc, char **argv) {
 
     // Create a pseudo-terminal and fork
     pid = forkpty(&pty_master, NULL, NULL, NULL);
-    fprintf(stderr, "forkpty returned pid: %d, pty_master: %d\n", pid, pty_master);
     if (pid < 0) {
         perror("forkpty");
         ftdi->usb_dev = NULL;
@@ -200,19 +199,21 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    struct termios term;
-    if (tcgetattr(pty_master, &term) < 0) {
-        perror("tcgetattr");
-        return EXIT_FAILURE;
+    // Parent process
+    if (pid > 0) {
+        struct termios term;
+        if (tcgetattr(pty_master, &term) < 0) {
+            perror("tcgetattr");
+            return EXIT_FAILURE;
+        }
+        cfmakeraw(&term);
+        if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
+            perror("tcsetattr");
+            return EXIT_FAILURE;
+        }
     }
-    cfmakeraw(&term);
-    if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
-        perror("tcsetattr");
-        return EXIT_FAILURE;
-    }
-
-    // Child process: execute a shell
-    if (pid == 0) {
+    // Child process
+    else if (pid == 0) {
         char *shell = "/bin/sh";
         char *args[] = {shell, "-i", NULL};
         execv(shell, args);
