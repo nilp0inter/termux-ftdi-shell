@@ -40,14 +40,12 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    // Initialize libusb
     libusb_set_option(NULL, LIBUSB_OPTION_WEAK_AUTHORITY);
     if (libusb_init(&usb_context) != 0) {
         fprintf(stderr, "libusb_init failed\n");
         return EXIT_FAILURE;
     }
 
-    // Wrap the system device
     if (libusb_wrap_sys_device(usb_context, (intptr_t)fd, &usb_handle) != 0) {
         fprintf(stderr, "libusb_wrap_sys_device failed\n");
         libusb_exit(usb_context);
@@ -75,7 +73,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Serial No: %s\n", buffer);
     }
 
-    // Initialize libftdi
     if ((ftdi = ftdi_new()) == 0) {
         fprintf(stderr, "ftdi_new failed\n");
         libusb_close(usb_handle);
@@ -101,7 +98,6 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    // Configure FTDI device for serial communication
     if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
         fprintf(stderr, "ftdi_set_baudrate failed: %s\n", ftdi_get_error_string(ftdi));
         ftdi_free(ftdi);
@@ -132,7 +128,6 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    // Create a pseudo-terminal and fork
     pid = setup_pty(&pty_master);
     if (pid < 0) {
         ftdi->usb_dev = NULL;
@@ -198,7 +193,7 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Failed to enqueue PTY data\n");
                 }
             } else {
-                break; // Shell has exited
+                break;
             }
         }
 
@@ -209,7 +204,8 @@ int main(int argc, char **argv) {
                 if (!write_tc) {
                     fprintf(stderr, "ftdi_write_data_submit failed\n");
                 }
-                // The buffer from the node will be freed when the transfer is done
+                // The FTDI library takes ownership of the buffer and will free it,
+                // so we only need to free the queue node itself.
                 free(node);
             }
         }
@@ -222,7 +218,6 @@ int main(int argc, char **argv) {
         if (write_tc) {
             int bytes_done = ftdi_transfer_data_done(write_tc);
             if (bytes_done >= 0) {
-                // Write transfer finished
                 free(write_tc->buf);
                 write_tc = NULL;
             } else if (bytes_done < 0) {
@@ -237,9 +232,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    fprintf(stderr, "Shell exited.\n");
+    fprintf(stderr, "Shell exited.\n
+");
 
-    // Cleanup
     queue_destroy(write_queue);
     ftdi->usb_dev = NULL;
     ftdi_free(ftdi);
