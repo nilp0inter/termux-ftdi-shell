@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
     if (ftdi_set_latency_timer(ftdi, 1) < 0) {
         fprintf(stderr, "ftdi_set_latency_timer failed: %s\n", ftdi_get_error_string(ftdi));
         ftdi_free(ftdi);
-        libusb_close(usb_.h); // This line seems to have a typo, assuming it should be usb_handle
+        libusb_close(usb_handle); // This line seems to have a typo, assuming it should be usb_handle
         libusb_exit(usb_context);
         return EXIT_FAILURE;
     }
