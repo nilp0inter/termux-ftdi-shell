@@ -190,6 +190,14 @@ int main(int argc, char **argv) {
 
     // Create a pseudo-terminal and fork
     pid = forkpty(&pty_master, NULL, NULL, NULL);
+    if (pid < 0) {
+        perror("forkpty");
+        ftdi->usb_dev = NULL;
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
 
     struct termios term;
     if (tcgetattr(pty_master, &term) < 0) {
@@ -199,15 +207,6 @@ int main(int argc, char **argv) {
     cfmakeraw(&term);
     if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
         perror("tcsetattr");
-        return EXIT_FAILURE;
-    }
-
-    if (pid < 0) {
-        perror("forkpty");
-        ftdi->usb_dev = NULL;
-        ftdi_free(ftdi);
-        libusb_close(usb_handle);
-        libusb_exit(usb_context);
         return EXIT_FAILURE;
     }
 
