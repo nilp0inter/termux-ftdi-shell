@@ -206,11 +206,7 @@ int main(int argc, char **argv) {
             perror("tcgetattr");
             return EXIT_FAILURE;
         }
-        term.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-        term.c_oflag &= ~OPOST;
-        term.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-        term.c_cflag &= ~(CSIZE | PARENB);
-        term.c_cflag |= CS8;
+        cfmakeraw(&term);
         if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
             perror("tcsetattr");
             return EXIT_FAILURE;
