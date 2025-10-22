@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <termios.h>
+#include "queue.h"
 
 #define BAUDRATE 115200
 
@@ -226,6 +227,7 @@ int main(int argc, char **argv) {
 
     struct ftdi_transfer_control *write_tc = NULL;
     unsigned char read_buf[1024];
+    Queue *write_queue = queue_create();
 
     while (1) {
         fd_set read_fds, write_fds, except_fds;
@@ -273,23 +275,23 @@ int main(int argc, char **argv) {
             char pty_buf[1024];
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
-                if (write_tc) {
-                    // Dropping PTY data, write in progress
-                } else {
-                    unsigned char *write_buf = malloc(pty_ret);
-                    if (!write_buf) {
-                        fprintf(stderr, "Failed to allocate memory for write buffer\n");
-                        continue;
-                    }
-                    memcpy(write_buf, pty_buf, pty_ret);
-                    write_tc = ftdi_write_data_submit(ftdi, write_buf, pty_ret);
-                    if (!write_tc) {
-                        fprintf(stderr, "ftdi_write_data_submit failed\n");
-                        free(write_buf);
-                    }
+                if (queue_enqueue(write_queue, (unsigned char*)pty_buf, pty_ret) != 0) {
+                    fprintf(stderr, "Failed to enqueue PTY data\n");
                 }
             } else {
                 break; // Shell has exited
+            }
+        }
+
+        if (!write_tc && write_queue->head) {
+            QueueNode *node = queue_dequeue(write_queue);
+            if (node) {
+                write_tc = ftdi_write_data_submit(ftdi, node->data, node->len);
+                if (!write_tc) {
+                    fprintf(stderr, "ftdi_write_data_submit failed\n");
+                }
+                // The buffer from the node will be freed when the transfer is done
+                free(node);
             }
         }
 
@@ -319,6 +321,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Shell exited.\n");
 
     // Cleanup
+    queue_destroy(write_queue);
     ftdi->usb_dev = NULL;
     ftdi_free(ftdi);
     libusb_close(usb_handle);
