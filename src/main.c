@@ -16,13 +16,9 @@
 
 int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
                                        libusb_context *usb_context,
-                                       libusb_device *dev,
                                        libusb_device_handle *handle,
                                        struct libusb_device_descriptor *desc)
 {
-    struct libusb_config_descriptor *config0;
-    int cfg, cfg0;
-
     if (ftdi == NULL)
         return -8;
 
@@ -152,7 +148,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Detached kernel driver\n");
     }
 
-    if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_dev, usb_handle, &desc) < 0) {
+    if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_handle, &desc) < 0) {
         fprintf(stderr, "ftdi_usb_open_from_wrapped_device failed\n");
         ftdi_free(ftdi);
         libusb_close(usb_handle);
