@@ -149,6 +149,7 @@ int main(int argc, char **argv) {
 
     if (libusb_kernel_driver_active(usb_handle, 0)) {
         libusb_detach_kernel_driver(usb_handle, 0);
+        fprintf(stderr, "Detached kernel driver\n");
     }
 
     if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_dev, usb_handle, &desc) < 0) {
@@ -158,14 +159,6 @@ int main(int argc, char **argv) {
         libusb_exit(usb_context);
         return EXIT_FAILURE;
     }
-
-    // ftdi_set_usbdev(ftdi, usb_handle);
-        // fprintf(stderr, "ftdi_usb_open_from_device_handle failed: %s\n", ftdi_get_error_string(ftdi));
-        // ftdi_free(ftdi);
-        // libusb_close(usb_handle);
-        // libusb_exit(usb_context);
-        // return EXIT_FAILURE;
-    // }
 
     // Configure FTDI device for serial communication
     if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
