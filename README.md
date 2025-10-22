@@ -17,11 +17,24 @@ This will install the necessary packages and build `libftdi` from source.
 ## Building
 
 ```bash
+autoreconf -i
+./configure
 make
 ```
 
+### Configure Options
+
+You can set the following options when running `./configure`:
+
+- `--with-baudrate=RATE`: Set the baudrate (default: 115200)
+- `--with-shell-path=PATH`: Set the shell path (default: /bin/bash)
+- `--with-shell-args=ARGS`: Set the shell arguments (default: -i)
+
+
 ## Usage
 
+To run the application, you can use the provided example script. This script will find the correct USB device and launch the shell.
+
 ```bash
-./termux-ftdi-shell
+./run-termux-ftdi-shell
 ```
