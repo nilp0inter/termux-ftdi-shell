@@ -190,6 +190,7 @@ int main(int argc, char **argv) {
 
     // Create a pseudo-terminal and fork
     pid = forkpty(&pty_master, NULL, NULL, NULL);
+    fprintf(stderr, "forkpty returned pid: %d, pty_master: %d\n", pid, pty_master);
     if (pid < 0) {
         perror("forkpty");
         ftdi->usb_dev = NULL;
