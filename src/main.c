@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
     // Child process: execute a shell
     if (pid == 0) {
         char *shell = "/bin/sh";
-        char *args[] = {shell, NULL};
+        char *args[] = {shell, "-i", NULL};
         execv(shell, args);
         perror("execv"); // execv only returns on error
         exit(1);
@@ -245,6 +245,8 @@ int main(int argc, char **argv) {
 
         int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
+        fprintf(stderr, "select returned %d\n", activity);
+
         if (activity < 0) {
             if (errno == EINTR)
                 continue;
@@ -252,7 +254,8 @@ int main(int argc, char **argv) {
             break;
         }
 
-        if (libusb_handle_events_timeout_completed(usb_context, &tv, NULL) < 0) {
+        struct timeval zero_tv = { 0, 0 };
+        if (libusb_handle_events_timeout_completed(usb_context, &zero_tv, NULL) < 0) {
             fprintf(stderr, "libusb_handle_events_timeout_completed failed\n");
             break;
         }
@@ -311,7 +314,7 @@ int main(int argc, char **argv) {
         }
 
         if (pollfds) {
-            free(pollfds);
+            libusb_free_pollfds(pollfds);
         }
     }
 
