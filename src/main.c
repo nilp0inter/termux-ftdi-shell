@@ -6,7 +6,10 @@
 #include <pty.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <sys/wait.h>
 #include <poll.h>
+#include <errno.h>
+#include <string.h>
 
 #define BAUDRATE 115200
 
@@ -30,11 +33,10 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
     libusb_exit(ftdi->usb_ctx);
     ftdi->usb_ctx = usb_context;
 
-    if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
-    if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
-        fprintf(stderr, "libusb_claim_interface() failed\n");
-        return -5;
-    }
+     if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
+         fprintf(stderr, "libusb_claim_interface() failed\n");
+         return -5;
+     }
 
     // Reset device
     if (ftdi_usb_reset(ftdi) != 0) {
