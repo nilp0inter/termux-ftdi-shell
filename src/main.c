@@ -44,12 +44,10 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
         return -12;
     }
 
-    // Set configuration if needed
-    if (desc->bNumConfigurations > 0 && cfg != cfg0) {
-        if (libusb_set_configuration(ftdi->usb_dev, cfg0) < 0) {
-            fprintf(stderr, "libusb_set_configuration() failed\n");
-            return -3;
-        }
+    // Force set configuration
+    if (libusb_set_configuration(ftdi->usb_dev, cfg0) < 0) {
+        fprintf(stderr, "libusb_set_configuration() failed\n");
+        // Don't return error, continue
     }
 
     // // Claim interface
