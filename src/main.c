@@ -183,6 +183,14 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    if (ftdi_set_latency_timer(ftdi, 1) < 0) {
+        fprintf(stderr, "ftdi_set_latency_timer failed: %s\n", ftdi_get_error_string(ftdi));
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+
     // Create a pseudo-terminal and fork
     pid = forkpty(&pty_master, NULL, NULL, NULL);
     if (pid < 0) {
@@ -205,16 +213,8 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Starting shell...\n");
 
-    struct ftdi_transfer_control *read_tc = NULL;
     struct ftdi_transfer_control *write_tc = NULL;
     unsigned char read_buf[1024];
-
-    // Submit initial read request
-    read_tc = ftdi_read_data_submit(ftdi, read_buf, sizeof(read_buf));
-    if (!read_tc) {
-        fprintf(stderr, "ftdi_read_data_submit failed\n");
-        // Handle error
-    }
 
     while (1) {
         fd_set read_fds, write_fds, except_fds;
@@ -295,21 +295,9 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (read_tc) {
-            fprintf(stderr, "calling ftdi_transfer_data_done(read_tc)\n");
-            int bytes_done = ftdi_transfer_data_done(read_tc);
-            fprintf(stderr, "ftdi_transfer_data_done(read_tc) returned %d\n", bytes_done);
-            if (bytes_done > 0) {
-                fprintf(stderr, "Read %d bytes from FTDI\n", bytes_done);
-                write(pty_master, read_buf, bytes_done);
-                // Resubmit read request
-                read_tc = ftdi_read_data_submit(ftdi, read_buf, sizeof(read_buf));
-                if (!read_tc) {
-                    fprintf(stderr, "ftdi_read_data_submit failed\n");
-                }
-            } else if (bytes_done < 0) {
-                fprintf(stderr, "Read transfer failed: %d\n", bytes_done);
-            }
+        int ftdi_ret = ftdi_read_data(ftdi, read_buf, sizeof(read_buf));
+        if (ftdi_ret > 0) {
+            write(pty_master, read_buf, ftdi_ret);
         }
 
         if (write_tc) {
