@@ -205,48 +205,45 @@ int main(int argc, char **argv) {
 
      fprintf(stderr, "Starting shell...\n");
 
-     while (1) {
-         fd_set read_fds;
-         struct timeval tv;
+    while (1) {
+        fd_set read_fds;
+        int max_fd = 0;
+        int activity;
 
-         FD_ZERO(&read_fds);
-         FD_SET(pty_master, &read_fds);
-         FD_SET(fd, &read_fds);
-         int max_fd = (pty_master > fd) ? pty_master : fd;
+        FD_ZERO(&read_fds);
+        FD_SET(pty_master, &read_fds);
+        max_fd = pty_master;
 
-         tv.tv_sec = 0;
-         tv.tv_usec = 10000;
+        // Add FTDI device to the set
+        // Note: libftdi uses libusb's event-driven API, but for simplicity, we'll poll
+        // This is not the most efficient way, but it's easier to implement
+        unsigned char ftdi_buf[1024];
+        int ftdi_ret = ftdi_read_data(ftdi, ftdi_buf, sizeof(ftdi_buf));
+        if (ftdi_ret > 0) {
+            fprintf(stderr, "Read %d bytes from FTDI\n", ftdi_ret);
+            write(pty_master, ftdi_buf, ftdi_ret);
+        }
 
-         int activity = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+        FD_SET(pty_master, &read_fds);
 
-         if (activity < 0) {
-             if (errno == EINTR)
-                 continue;
-             perror("select");
-             break;
-         }
+        activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
 
-         if (FD_ISSET(fd, &read_fds)) {
-             unsigned char read_buf[1024];
-             int n = read(fd, read_buf, sizeof(read_buf));
-             if (n > 0) {
-                 write(pty_master, read_buf, n);
-             } else if (n < 0) {
-                 perror("read from USB");
-                 break;
-             }
-         }
+        if ((activity < 0) && (errno != EINTR)) {
+            perror("select");
+            break;
+        }
 
-         if (FD_ISSET(pty_master, &read_fds)) {
-             char pty_buf[1024];
-             int n = read(pty_master, pty_buf, sizeof(pty_buf));
-             if (n > 0) {
-                 write(fd, pty_buf, n);
-             } else if (n == 0) {
-                 break;
-             }
-         }
-     }
+        if (FD_ISSET(pty_master, &read_fds)) {
+            char pty_buf[1024];
+            int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
+            if (pty_ret > 0) {
+                fprintf(stderr, "Read %d bytes from PTY\n", pty_ret);
+                ftdi_write_data(ftdi, (const unsigned char *)pty_buf, pty_ret);
+            } else {
+                break; // Shell has exited
+            }
+        }
+    }
 
     fprintf(stderr, "Shell exited.\n");
 
