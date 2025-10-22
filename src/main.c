@@ -262,10 +262,12 @@ int main(int argc, char **argv) {
             break;
         }
 
+        fprintf(stderr, "calling libusb_handle_events\n");
         if (libusb_handle_events(usb_context) < 0) {
             fprintf(stderr, "libusb_handle_events failed\n");
             break;
         }
+        fprintf(stderr, "libusb_handle_events returned\n");
 
         if (FD_ISSET(pty_master, &read_fds)) {
             fprintf(stderr, "pty_master is ready for reading\n");
