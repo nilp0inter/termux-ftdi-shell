@@ -10,6 +10,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <string.h>
+#include <termios.h>
 
 #define BAUDRATE 115200
 
@@ -189,6 +190,18 @@ int main(int argc, char **argv) {
 
     // Create a pseudo-terminal and fork
     pid = forkpty(&pty_master, NULL, NULL, NULL);
+
+    struct termios term;
+    if (tcgetattr(pty_master, &term) < 0) {
+        perror("tcgetattr");
+        return EXIT_FAILURE;
+    }
+    cfmakeraw(&term);
+    if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
+        perror("tcsetattr");
+        return EXIT_FAILURE;
+    }
+
     if (pid < 0) {
         perror("forkpty");
         ftdi->usb_dev = NULL;
