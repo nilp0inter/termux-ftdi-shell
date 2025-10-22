@@ -261,6 +261,7 @@ int main(int argc, char **argv) {
         }
 
         if (FD_ISSET(pty_master, &read_fds)) {
+            fprintf(stderr, "pty_master is ready for reading\n");
             char pty_buf[1024];
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
