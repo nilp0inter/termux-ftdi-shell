@@ -81,13 +81,13 @@ int main(int argc, char **argv) {
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    if (ftdi_usb_open_from_device_handle(ftdi, usb_handle) < 0) {
-        fprintf(stderr, "ftdi_usb_open_from_device_handle failed: %s\n", ftdi_get_error_string(ftdi));
-        ftdi_free(ftdi);
-        libusb_close(usb_handle);
-        libusb_exit(usb_context);
-        return EXIT_FAILURE;
-    }
+    ftdi_set_usbdev(ftdi, usb_handle);
+        // fprintf(stderr, "ftdi_usb_open_from_device_handle failed: %s\n", ftdi_get_error_string(ftdi));
+        // ftdi_free(ftdi);
+        // libusb_close(usb_handle);
+        // libusb_exit(usb_context);
+        // return EXIT_FAILURE;
+    // }
 
     // Configure FTDI device for serial communication
     if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
