@@ -26,9 +26,18 @@ make
 
 You can set the following options when running `./configure`:
 
-- `--with-baudrate=RATE`: Set the baudrate (default: 115200)
-- `--with-shell-path=PATH`: Set the shell path (default: /bin/bash)
-- `--with-shell-args=ARGS`: Set the shell arguments (default: -i)
+| Option | Description | Default |
+| --- | --- | --- |
+| `--with-baudrate` | Set the baudrate | `115200` |
+| `--with-bits` | Set the bits | `BITS_8` |
+| `--with-stop-bit` | Set the stop bit | `STOP_BIT_1` |
+| `--with-parity` | Set the parity | `NONE` |
+| `--with-flow-ctrl` | Set the flow control | `SIO_DISABLE_FLOW_CTRL` |
+| `--with-latency-timer` | Set the latency timer | `1` |
+| `--with-buffer-size` | Set the buffer size | `1024` |
+| `--with-select-timeout-us` | Set the select timeout in microseconds | `10000` |
+| `--with-shell-path` | Set the shell path | `/bin/bash` |
+| `--with-shell-args` | Set the shell arguments | `-i` |
 
 
 ## Usage
