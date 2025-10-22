@@ -296,7 +296,9 @@ int main(int argc, char **argv) {
         }
 
         if (read_tc) {
+            fprintf(stderr, "calling ftdi_transfer_data_done(read_tc)\n");
             int bytes_done = ftdi_transfer_data_done(read_tc);
+            fprintf(stderr, "ftdi_transfer_data_done(read_tc) returned %d\n", bytes_done);
             if (bytes_done > 0) {
                 fprintf(stderr, "Read %d bytes from FTDI\n", bytes_done);
                 write(pty_master, read_buf, bytes_done);
@@ -311,7 +313,9 @@ int main(int argc, char **argv) {
         }
 
         if (write_tc) {
+            fprintf(stderr, "calling ftdi_transfer_data_done(write_tc)\n");
             int bytes_done = ftdi_transfer_data_done(write_tc);
+            fprintf(stderr, "ftdi_transfer_data_done(write_tc) returned %d\n", bytes_done);
             if (bytes_done >= 0) {
                 // Write transfer finished
                 free(write_tc->buf);
