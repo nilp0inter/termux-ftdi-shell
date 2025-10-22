@@ -225,49 +225,50 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    fprintf(stderr, "Starting shell...\n");
+     fprintf(stderr, "Starting shell...\n");
 
-    while (1) {
-        fd_set read_fds;
-        struct timeval tv;
+     while (1) {
+         fd_set read_fds;
+         struct timeval tv;
 
-        FD_ZERO(&read_fds);
-        FD_SET(pty_master, &read_fds);
-        int max_fd = pty_master;
+         FD_ZERO(&read_fds);
+         FD_SET(pty_master, &read_fds);
+         FD_SET(fd, &read_fds);
+         int max_fd = (pty_master > fd) ? pty_master : fd;
 
-        tv.tv_sec = 0;
-        tv.tv_usec = 10000;
+         tv.tv_sec = 0;
+         tv.tv_usec = 10000;
 
-        int activity = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+         int activity = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
 
-        if (activity < 0) {
-            if (errno == EINTR)
-                continue;
-            perror("select");
-            break;
-        }
+         if (activity < 0) {
+             if (errno == EINTR)
+                 continue;
+             perror("select");
+             break;
+         }
 
-        unsigned char read_buf[1024];
-        int ftdi_bytes = ftdi_read_data(ftdi, read_buf, sizeof(read_buf));
-        if (ftdi_bytes > 0) {
-            write(pty_master, read_buf, ftdi_bytes);
-        } else if (ftdi_bytes < 0) {
-            fprintf(stderr, "ftdi_read_data error: %d\n", ftdi_bytes);
-        }
+         if (FD_ISSET(fd, &read_fds)) {
+             unsigned char read_buf[1024];
+             int n = read(fd, read_buf, sizeof(read_buf));
+             if (n > 0) {
+                 write(pty_master, read_buf, n);
+             } else if (n < 0) {
+                 perror("read from USB");
+                 break;
+             }
+         }
 
-        if (FD_ISSET(pty_master, &read_fds)) {
-            char pty_buf[1024];
-            int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
-            if (pty_ret > 0) {
-                int written = ftdi_write_data(ftdi, (unsigned char*)pty_buf, pty_ret);
-                if (written < 0) {
-                    fprintf(stderr, "ftdi_write_data error: %d\n", written);
-                }
-            } else if (pty_ret == 0) {
-                break;
-            }
-        }
-    }
+         if (FD_ISSET(pty_master, &read_fds)) {
+             char pty_buf[1024];
+             int n = read(pty_master, pty_buf, sizeof(pty_buf));
+             if (n > 0) {
+                 write(fd, pty_buf, n);
+             } else if (n == 0) {
+                 break;
+             }
+         }
+     }
 
     fprintf(stderr, "Shell exited.\n");
 
