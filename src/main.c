@@ -203,33 +203,57 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-     fprintf(stderr, "Starting shell...\n");
+    fprintf(stderr, "Starting shell...\n");
+
+    struct ftdi_transfer_control *read_tc = NULL;
+    struct ftdi_transfer_control *write_tc = NULL;
+    unsigned char read_buf[1024];
+
+    // Submit initial read request
+    read_tc = ftdi_read_data_submit(ftdi, read_buf, sizeof(read_buf));
+    if (!read_tc) {
+        fprintf(stderr, "ftdi_read_data_submit failed\n");
+        // Handle error
+    }
 
     while (1) {
-        fd_set read_fds;
+        fd_set read_fds, write_fds, except_fds;
         int max_fd = 0;
-        int activity;
+        struct timeval tv;
 
         FD_ZERO(&read_fds);
+        FD_ZERO(&write_fds);
+        FD_ZERO(&except_fds);
+
         FD_SET(pty_master, &read_fds);
         max_fd = pty_master;
 
-        // Add FTDI device to the set
-        // Note: libftdi uses libusb's event-driven API, but for simplicity, we'll poll
-        // This is not the most efficient way, but it's easier to implement
-        unsigned char ftdi_buf[1024];
-        int ftdi_ret = ftdi_read_data(ftdi, ftdi_buf, sizeof(ftdi_buf));
-        if (ftdi_ret > 0) {
-            fprintf(stderr, "Read %d bytes from FTDI\n", ftdi_ret);
-            write(pty_master, ftdi_buf, ftdi_ret);
+        const struct libusb_pollfd **pollfds = libusb_get_pollfds(usb_context);
+        if (pollfds) {
+            for (int i = 0; pollfds[i] != NULL; i++) {
+                if (pollfds[i]->events & POLLIN)
+                    FD_SET(pollfds[i]->fd, &read_fds);
+                if (pollfds[i]->events & POLLOUT)
+                    FD_SET(pollfds[i]->fd, &write_fds);
+                if (pollfds[i]->fd > max_fd)
+                    max_fd = pollfds[i]->fd;
+            }
         }
 
-        FD_SET(pty_master, &read_fds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000; // 100ms timeout
 
-        activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+        int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
-        if ((activity < 0) && (errno != EINTR)) {
+        if (activity < 0) {
+            if (errno == EINTR)
+                continue;
             perror("select");
+            break;
+        }
+
+        if (libusb_handle_events_timeout_completed(usb_context, &tv, NULL) < 0) {
+            fprintf(stderr, "libusb_handle_events_timeout_completed failed\n");
             break;
         }
 
@@ -238,10 +262,56 @@ int main(int argc, char **argv) {
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
                 fprintf(stderr, "Read %d bytes from PTY\n", pty_ret);
-                ftdi_write_data(ftdi, (const unsigned char *)pty_buf, pty_ret);
+                if (write_tc) {
+                    fprintf(stderr, "Dropping PTY data, write in progress\n");
+                } else {
+                    unsigned char *write_buf = malloc(pty_ret);
+                    if (!write_buf) {
+                        fprintf(stderr, "Failed to allocate memory for write buffer\n");
+                        continue;
+                    }
+                    memcpy(write_buf, pty_buf, pty_ret);
+                    write_tc = ftdi_write_data_submit(ftdi, write_buf, pty_ret);
+                    if (!write_tc) {
+                        fprintf(stderr, "ftdi_write_data_submit failed\n");
+                        free(write_buf);
+                    }
+                }
             } else {
                 break; // Shell has exited
             }
+        }
+
+        if (read_tc) {
+            int bytes_done = ftdi_transfer_data_done(read_tc);
+            if (bytes_done > 0) {
+                fprintf(stderr, "Read %d bytes from FTDI\n", bytes_done);
+                write(pty_master, read_buf, bytes_done);
+                // Resubmit read request
+                read_tc = ftdi_read_data_submit(ftdi, read_buf, sizeof(read_buf));
+                if (!read_tc) {
+                    fprintf(stderr, "ftdi_read_data_submit failed\n");
+                }
+            } else if (bytes_done < 0) {
+                fprintf(stderr, "Read transfer failed: %d\n", bytes_done);
+            }
+        }
+
+        if (write_tc) {
+            int bytes_done = ftdi_transfer_data_done(write_tc);
+            if (bytes_done >= 0) {
+                // Write transfer finished
+                free(write_tc->buf);
+                write_tc = NULL;
+            } else if (bytes_done < 0) {
+                fprintf(stderr, "Write transfer failed: %d\n", bytes_done);
+                free(write_tc->buf);
+                write_tc = NULL;
+            }
+        }
+
+        if (pollfds) {
+            free(pollfds);
         }
     }
 
