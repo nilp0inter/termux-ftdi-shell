@@ -242,6 +242,13 @@ int main(int argc, char **argv) {
         // Handle error
     }
 
+    fprintf(stderr, "ftdi->interface = %d\n", ftdi->interface);
+    fprintf(stderr, "ftdi->in_ep = 0x%02x\n", ftdi->in_ep);
+    fprintf(stderr, "ftdi->out_ep = 0x%02x\n", ftdi->out_ep);
+    fprintf(stderr, "ftdi->usb_dev = %p\n", ftdi->usb_dev);
+    fprintf(stderr, "ftdi->usb_ctx = %p, usb_context = %p\n", ftdi->usb_ctx, usb_context);
+
+
     while (1) {
         fd_set read_fds, write_fds, except_fds;
         int max_fd = 0;
