@@ -262,12 +262,13 @@ int main(int argc, char **argv) {
             break;
         }
 
-        fprintf(stderr, "calling libusb_handle_events\n");
-        if (libusb_handle_events(usb_context) < 0) {
-            fprintf(stderr, "libusb_handle_events failed\n");
+        struct timeval zero_tv = { 0, 0 };
+        fprintf(stderr, "calling libusb_handle_events_timeout\n");
+        if (libusb_handle_events_timeout(usb_context, &zero_tv) < 0) {
+            fprintf(stderr, "libusb_handle_events_timeout failed\n");
             break;
         }
-        fprintf(stderr, "libusb_handle_events returned\n");
+        fprintf(stderr, "libusb_handle_events_timeout returned\n");
 
         if (FD_ISSET(pty_master, &read_fds)) {
             fprintf(stderr, "pty_master is ready for reading\n");
