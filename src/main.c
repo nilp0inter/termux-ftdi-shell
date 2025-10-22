@@ -1,3 +1,4 @@
+#include "config.h"
 #include "ftdi_utils.h"
 #include "pty_utils.h"
 #include "queue.h"
@@ -14,8 +15,6 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
-
-#define BAUDRATE 115200
 
 int main(int argc, char **argv) {
   libusb_context *usb_context;
@@ -112,7 +111,7 @@ int main(int argc, char **argv) {
     libusb_exit(usb_context);
     return EXIT_FAILURE;
   }
-  if (ftdi_set_line_property(ftdi, BITS_8, STOP_BIT_1, NONE) < 0) {
+  if (ftdi_set_line_property(ftdi, BITS, STOP_BIT, PARITY) < 0) {
     fprintf(stderr, "ftdi_set_line_property failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -120,7 +119,7 @@ int main(int argc, char **argv) {
     libusb_exit(usb_context);
     return EXIT_FAILURE;
   }
-  if (ftdi_setflowctrl(ftdi, SIO_DISABLE_FLOW_CTRL) < 0) {
+  if (ftdi_setflowctrl(ftdi, FLOW_CTRL) < 0) {
     fprintf(stderr, "ftdi_setflowctrl failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -129,7 +128,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (ftdi_set_latency_timer(ftdi, 1) < 0) {
+  if (ftdi_set_latency_timer(ftdi, LATENCY_TIMER) < 0) {
     fprintf(stderr, "ftdi_set_latency_timer failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -151,7 +150,7 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Starting shell...\n");
 
   struct ftdi_transfer_control *write_tc = NULL;
-  unsigned char read_buf[1024];
+  unsigned char read_buf[BUFFER_SIZE];
   Queue *write_queue = queue_create();
 
   while (1) {
@@ -179,7 +178,7 @@ int main(int argc, char **argv) {
     }
 
     tv.tv_sec = 0;
-    tv.tv_usec = 10000; // 10ms timeout
+    tv.tv_usec = SELECT_TIMEOUT_US; // 10ms timeout
 
     int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
@@ -197,7 +196,7 @@ int main(int argc, char **argv) {
     }
 
     if (FD_ISSET(pty_master, &read_fds)) {
-      char pty_buf[1024];
+      char pty_buf[BUFFER_SIZE];
       int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
       if (pty_ret > 0) {
         if (queue_enqueue(write_queue, (unsigned char *)pty_buf, pty_ret) !=

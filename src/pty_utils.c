@@ -1,3 +1,4 @@
+#include "config.h"
 #include "pty_utils.h"
 #include <pty.h>
 #include <stdio.h>
@@ -25,8 +26,8 @@ pid_t setup_pty(int *pty_master) {
       return -1;
     }
   } else if (pid == 0) {
-    char *shell = "/bin/bash";
-    char *args[] = {shell, "-i", NULL};
+    char *shell = SHELL_PATH;
+    char *args[] = {shell, SHELL_ARGS, NULL};
     execv(shell, args);
     perror("execv");
     exit(1);

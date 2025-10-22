@@ -1,3 +1,4 @@
+#include "config.h"
 #include "ftdi_utils.h"
 #include <ftdi.h>
 #include <stdio.h>
@@ -71,7 +72,7 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
   }
   ftdi->max_packet_size = packet_size;
 
-  if (ftdi_set_baudrate(ftdi, 9600) != 0) {
+  if (ftdi_set_baudrate(ftdi, BAUDRATE) != 0) {
     fprintf(stderr, "ftdi_set_baudrate() failed\n");
     return -7;
   }
