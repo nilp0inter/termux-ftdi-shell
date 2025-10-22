@@ -245,16 +245,6 @@ int main(int argc, char **argv) {
 
         int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
-        fprintf(stderr, "select returned %d\n", activity);
-
-        if (pollfds) {
-            for (int i = 0; pollfds[i] != NULL; i++) {
-                if (FD_ISSET(pollfds[i]->fd, &read_fds) || FD_ISSET(pollfds[i]->fd, &write_fds)) {
-                    fprintf(stderr, "libusb fd %d is ready\n", pollfds[i]->fd);
-                }
-            }
-        }
-
         if (activity < 0) {
             if (errno == EINTR)
                 continue;
@@ -263,21 +253,17 @@ int main(int argc, char **argv) {
         }
 
         struct timeval zero_tv = { 0, 0 };
-        fprintf(stderr, "calling libusb_handle_events_timeout\n");
         if (libusb_handle_events_timeout(usb_context, &zero_tv) < 0) {
             fprintf(stderr, "libusb_handle_events_timeout failed\n");
             break;
         }
-        fprintf(stderr, "libusb_handle_events_timeout returned\n");
 
         if (FD_ISSET(pty_master, &read_fds)) {
-            fprintf(stderr, "pty_master is ready for reading\n");
             char pty_buf[1024];
             int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
             if (pty_ret > 0) {
-                fprintf(stderr, "Read %d bytes from PTY\n", pty_ret);
                 if (write_tc) {
-                    fprintf(stderr, "Dropping PTY data, write in progress\n");
+                    // Dropping PTY data, write in progress
                 } else {
                     unsigned char *write_buf = malloc(pty_ret);
                     if (!write_buf) {
@@ -302,9 +288,7 @@ int main(int argc, char **argv) {
         }
 
         if (write_tc) {
-            fprintf(stderr, "calling ftdi_transfer_data_done(write_tc)\n");
             int bytes_done = ftdi_transfer_data_done(write_tc);
-            fprintf(stderr, "ftdi_transfer_data_done(write_tc) returned %d\n", bytes_done);
             if (bytes_done >= 0) {
                 // Write transfer finished
                 free(write_tc->buf);
