@@ -244,8 +244,7 @@ int main(int argc, char **argv) {
     }
   }
 
-    fprintf(stderr, "Shell exited.\n
-");
+    fprintf(stderr, "Shell exited.\n");
 
     queue_destroy(write_queue);
     ftdi->usb_dev = NULL;
