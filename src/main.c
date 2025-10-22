@@ -207,6 +207,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
         cfmakeraw(&term);
+        term.c_iflag |= ICRNL;
         if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
             perror("tcsetattr");
             return EXIT_FAILURE;
