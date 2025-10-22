@@ -4,19 +4,19 @@
 #include <stdlib.h>
 
 typedef struct QueueNode {
-    unsigned char *data;
-    size_t len;
-    struct QueueNode *next;
+  unsigned char *data;
+  size_t len;
+  struct QueueNode *next;
 } QueueNode;
 
 typedef struct {
-    QueueNode *head;
-    QueueNode *tail;
+  QueueNode *head;
+  QueueNode *tail;
 } Queue;
 
-Queue* queue_create(void);
+Queue *queue_create(void);
 void queue_destroy(Queue *q);
 int queue_enqueue(Queue *q, const unsigned char *data, size_t len);
-QueueNode* queue_dequeue(Queue *q);
+QueueNode *queue_dequeue(Queue *q);
 
 #endif // QUEUE_H
