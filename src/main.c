@@ -10,6 +10,87 @@
 
 #define BAUDRATE 115200
 
+
+int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
+                                       libusb_device *dev,
+                                       libusb_device_handle *handle,
+                                       struct libusb_device_descriptor *desc)
+{
+    struct libusb_config_descriptor *config0;
+    int cfg, cfg0;
+
+    if (ftdi == NULL)
+        return -8;
+
+    // Set the already-opened device handle
+    ftdi->usb_dev = handle;
+
+    // Get config descriptor
+    if (libusb_get_config_descriptor(dev, 0, &config0) < 0) {
+        fprintf(stderr, "libusb_get_config_descriptor() failed\n");
+        return -10;
+    }
+    cfg0 = config0->bConfigurationValue;
+    libusb_free_config_descriptor(config0);
+
+    // Get current configuration
+    if (libusb_get_configuration(ftdi->usb_dev, &cfg) < 0) {
+        fprintf(stderr, "libusb_get_configuration() failed\n");
+        return -12;
+    }
+
+    // Set configuration if needed
+    if (desc->bNumConfigurations > 0 && cfg != cfg0) {
+        if (libusb_set_configuration(ftdi->usb_dev, cfg0) < 0) {
+            fprintf(stderr, "libusb_set_configuration() failed\n");
+            return -3;
+        }
+    }
+
+    // Claim interface
+    if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
+        fprintf(stderr, "libusb_claim_interface() failed\n");
+        return -5;
+    }
+
+    // Reset device
+    if (ftdi_usb_reset(ftdi) != 0) {
+        fprintf(stderr, "ftdi_usb_reset() failed\n");
+        return -6;
+    }
+
+    // Detect chip type
+    if (desc->bcdDevice == 0x400 || (desc->bcdDevice == 0x200 && desc->iSerialNumber == 0))
+        ftdi->type = TYPE_BM;
+    else if (desc->bcdDevice == 0x200)
+        ftdi->type = TYPE_AM;
+    else if (desc->bcdDevice == 0x500)
+        ftdi->type = TYPE_2232C;
+    else if (desc->bcdDevice == 0x600)
+        ftdi->type = TYPE_R;
+    else if (desc->bcdDevice == 0x700)
+        ftdi->type = TYPE_2232H;
+    else if (desc->bcdDevice == 0x800)
+        ftdi->type = TYPE_4232H;
+    else if (desc->bcdDevice == 0x900)
+        ftdi->type = TYPE_232H;
+    else if (desc->bcdDevice == 0x1000)
+        ftdi->type = TYPE_230X;
+
+    // Determine max packet size - you'll need to expose this or reimplement
+    // ftdi->max_packet_size = _ftdi_determine_max_packet_size(ftdi, dev);
+    // For now, set a safe default:
+    ftdi->max_packet_size = 64; // Most FTDI chips use 64 bytes
+
+    // Set initial baudrate
+    if (ftdi_set_baudrate(ftdi, 9600) != 0) {
+        fprintf(stderr, "ftdi_set_baudrate() failed\n");
+        return -7;
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
     libusb_context *usb_context;
     libusb_device_handle *usb_handle;
@@ -81,7 +162,16 @@ int main(int argc, char **argv) {
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    ftdi_set_usbdev(ftdi, usb_handle);
+    
+    if (ftdi_usb_open_from_wrapped_device(ftdi, usb_dev, usb_handle, &desc) < 0) {
+        fprintf(stderr, "ftdi_usb_open_from_wrapped_device failed\n");
+        ftdi_free(ftdi);
+        libusb_close(usb_handle);
+        libusb_exit(usb_context);
+        return EXIT_FAILURE;
+    }
+
+    // ftdi_set_usbdev(ftdi, usb_handle);
         // fprintf(stderr, "ftdi_usb_open_from_device_handle failed: %s\n", ftdi_get_error_string(ftdi));
         // ftdi_free(ftdi);
         // libusb_close(usb_handle);
