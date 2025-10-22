@@ -50,11 +50,11 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
         // Don't return error, continue
     }
 
-    // // Claim interface
-    // if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
-    //     fprintf(stderr, "libusb_claim_interface() failed\n");
-    //     return -5;
-    // }
+    // Claim interface
+    if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
+        fprintf(stderr, "libusb_claim_interface() failed\n");
+        return -5;
+    }
 
     // Reset device
     if (ftdi_usb_reset(ftdi) != 0) {
