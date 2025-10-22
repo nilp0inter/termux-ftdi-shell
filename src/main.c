@@ -247,6 +247,14 @@ int main(int argc, char **argv) {
 
         fprintf(stderr, "select returned %d\n", activity);
 
+        if (pollfds) {
+            for (int i = 0; pollfds[i] != NULL; i++) {
+                if (FD_ISSET(pollfds[i]->fd, &read_fds) || FD_ISSET(pollfds[i]->fd, &write_fds)) {
+                    fprintf(stderr, "libusb fd %d is ready\n", pollfds[i]->fd);
+                }
+            }
+        }
+
         if (activity < 0) {
             if (errno == EINTR)
                 continue;
