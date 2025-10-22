@@ -24,6 +24,10 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
 
     // Set the already-opened device handle
     ftdi->usb_dev = handle;
+    // We're using a different libusb context than what ftdi_init created
+    // Need to use the same context that has the wrapped device
+    libusb_exit(ftdi->usb_ctx);
+    ftdi->usb_ctx = usb_context;
 
     // Get config descriptor
     if (libusb_get_config_descriptor(dev, 0, &config0) < 0) {
