@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
     }
     // Child process
     else if (pid == 0) {
-        char *shell = "/bin/sh";
+        char *shell = "/bin/bash";
         char *args[] = {shell, "-i", NULL};
         execv(shell, args);
         perror("execv"); // execv only returns on error
