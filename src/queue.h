@@ -14,7 +14,7 @@ typedef struct {
     QueueNode *tail;
 } Queue;
 
-Queue* queue_create();
+Queue* queue_create(void);
 void queue_destroy(Queue *q);
 int queue_enqueue(Queue *q, const unsigned char *data, size_t len);
 QueueNode* queue_dequeue(Queue *q);

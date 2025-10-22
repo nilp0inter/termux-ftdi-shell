@@ -1,7 +1,7 @@
 #include "queue.h"
 #include <string.h>
 
-Queue* queue_create() {
+Queue* queue_create(void) {
     Queue *q = (Queue*)malloc(sizeof(Queue));
     if (q) {
         q->head = q->tail = NULL;
