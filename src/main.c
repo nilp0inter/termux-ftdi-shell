@@ -262,9 +262,8 @@ int main(int argc, char **argv) {
             break;
         }
 
-        struct timeval zero_tv = { 0, 0 };
-        if (libusb_handle_events_timeout_completed(usb_context, &zero_tv, NULL) < 0) {
-            fprintf(stderr, "libusb_handle_events_timeout_completed failed\n");
+        if (libusb_handle_events(usb_context) < 0) {
+            fprintf(stderr, "libusb_handle_events failed\n");
             break;
         }
 
