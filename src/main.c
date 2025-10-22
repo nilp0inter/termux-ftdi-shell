@@ -60,10 +60,32 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
     else if (desc->bcdDevice == 0x1000)
         ftdi->type = TYPE_230X;
 
-    // Determine max packet size - you'll need to expose this or reimplement
-    // ftdi->max_packet_size = _ftdi_determine_max_packet_size(ftdi, dev);
-    // For now, set a safe default:
-    ftdi->max_packet_size = 64; // Most FTDI chips use 64 bytes
+    // Determine max packet size
+    unsigned int packet_size;
+    if (ftdi->type == TYPE_2232H || ftdi->type == TYPE_4232H || ftdi->type == TYPE_232H)
+        packet_size = 512;
+    else
+        packet_size = 64;
+
+    libusb_device *dev = libusb_get_device(handle);
+    if (dev) {
+        struct libusb_config_descriptor *config0;
+        if (libusb_get_config_descriptor(dev, 0, &config0) == 0) {
+            if (desc->bNumConfigurations > 0) {
+                if (ftdi->interface < config0->bNumInterfaces) {
+                    struct libusb_interface interface = config0->interface[ftdi->interface];
+                    if (interface.num_altsetting > 0) {
+                        struct libusb_interface_descriptor descriptor = interface.altsetting[0];
+                        if (descriptor.bNumEndpoints > 0) {
+                            packet_size = descriptor.endpoint[0].wMaxPacketSize;
+                        }
+                    }
+                }
+            }
+            libusb_free_config_descriptor(config0);
+        }
+    }
+    ftdi->max_packet_size = packet_size;
 
     // Set initial baudrate
     if (ftdi_set_baudrate(ftdi, 9600) != 0) {
@@ -208,7 +230,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
         cfmakeraw(&term);
-        term.c_iflag |= ICRNL;
+        term.c_iflag &= ~ICRNL;
         if (tcsetattr(pty_master, TCSANOW, &term) < 0) {
             perror("tcsetattr");
             return EXIT_FAILURE;
@@ -254,7 +276,7 @@ int main(int argc, char **argv) {
         }
 
         tv.tv_sec = 0;
-        tv.tv_usec = 100000; // 100ms timeout
+        tv.tv_usec = 10000; // 10ms timeout
 
         int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
