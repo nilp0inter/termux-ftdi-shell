@@ -30,27 +30,7 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
     libusb_exit(ftdi->usb_ctx);
     ftdi->usb_ctx = usb_context;
 
-    // Get config descriptor
-    if (libusb_get_config_descriptor(dev, 0, &config0) < 0) {
-        fprintf(stderr, "libusb_get_config_descriptor() failed\n");
-        return -10;
-    }
-    cfg0 = config0->bConfigurationValue;
-    libusb_free_config_descriptor(config0);
-
-    // Get current configuration
-    if (libusb_get_configuration(ftdi->usb_dev, &cfg) < 0) {
-        fprintf(stderr, "libusb_get_configuration() failed\n");
-        return -12;
-    }
-
-    // Force set configuration
-    if (libusb_set_configuration(ftdi->usb_dev, cfg0) < 0) {
-        fprintf(stderr, "libusb_set_configuration() failed\n");
-        // Don't return error, continue
-    }
-
-    // Claim interface
+    if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
     if (libusb_claim_interface(ftdi->usb_dev, ftdi->interface) < 0) {
         fprintf(stderr, "libusb_claim_interface() failed\n");
         return -5;
@@ -118,7 +98,7 @@ int main(int argc, char **argv) {
     }
 
     // Initialize libusb
-    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY);
+    libusb_set_option(NULL, LIBUSB_OPTION_WEAK_AUTHORITY);
     if (libusb_init(&usb_context) != 0) {
         fprintf(stderr, "libusb_init failed\n");
         return EXIT_FAILURE;
@@ -165,7 +145,10 @@ int main(int argc, char **argv) {
            version.version_str, version.major, version.minor, version.micro,
            version.snapshot_str);
 
-    
+    if (libusb_kernel_driver_active(usb_handle, 0)) {
+        libusb_detach_kernel_driver(usb_handle, 0);
+    }
+
     if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_dev, usb_handle, &desc) < 0) {
         fprintf(stderr, "ftdi_usb_open_from_wrapped_device failed\n");
         ftdi_free(ftdi);
