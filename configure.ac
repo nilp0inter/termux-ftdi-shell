@@ -1,4 +1,4 @@
-AC_INIT([termux-ftdi-shell], [1.0], [your-email@example.com])
+AC_INIT([termux-ftdi-shell], [1.0], [https://github.com/nilp0inter/termux-ftdi-shell/issues], [termux-ftdi-shell], [https://github.com/nilp0inter/termux-ftdi-shell])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
