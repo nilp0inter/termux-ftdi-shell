@@ -16,73 +16,31 @@
 #include <termios.h>
 #include <unistd.h>
 
-int main(int argc, char **argv) {
-  libusb_context *usb_context;
-  libusb_device_handle *usb_handle;
-  libusb_device *usb_dev;
-  struct libusb_device_descriptor desc;
-  unsigned char buffer[256];
-  int fd;
-
-  struct ftdi_context *ftdi;
-  struct ftdi_version_info version;
-  int pty_master;
-  pid_t pid;
-
-  if (argc < 2) {
-    fprintf(stderr, "Usage: %s <file_descriptor>\n", argv[0]);
-    return EXIT_FAILURE;
-  }
-
-  if (sscanf(argv[1], "%d", &fd) != 1) {
-    fprintf(stderr, "Invalid file descriptor: %s\n", argv[1]);
-    return EXIT_FAILURE;
-  }
-
+static int init_usb(libusb_context **usb_context,
+                    libusb_device_handle **usb_handle, int fd) {
   libusb_set_option(NULL, LIBUSB_OPTION_WEAK_AUTHORITY);
-  if (libusb_init(&usb_context) != 0) {
+  if (libusb_init(usb_context) != 0) {
     fprintf(stderr, "libusb_init failed\n");
-    return EXIT_FAILURE;
+    return -1;
   }
 
-  if (libusb_wrap_sys_device(usb_context, (intptr_t)fd, &usb_handle) != 0) {
+  if (libusb_wrap_sys_device(*usb_context, (intptr_t)fd, usb_handle) != 0) {
     fprintf(stderr, "libusb_wrap_sys_device failed\n");
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+    libusb_exit(*usb_context);
+    return -1;
   }
 
-  usb_dev = libusb_get_device(usb_handle);
-  if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
-    fprintf(stderr, "libusb_get_device_descriptor failed\n");
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
-  }
+  return 0;
+}
 
-  fprintf(stderr, "Vendor ID: %04x\n", desc.idVendor);
-  fprintf(stderr, "Product ID: %04x\n", desc.idProduct);
-
-  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iManufacturer, buffer,
-                                         256) >= 0) {
-    fprintf(stderr, "Manufacturer: %s\n", buffer);
-  }
-  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iProduct, buffer,
-                                         256) >= 0) {
-    fprintf(stderr, "Product: %s\n", buffer);
-  }
-  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iSerialNumber, buffer,
-                                         256) >= 0) {
-    fprintf(stderr, "Serial No: %s\n", buffer);
-  }
-
-  if ((ftdi = ftdi_new()) == 0) {
+static int init_ftdi(struct ftdi_context **ftdi, libusb_context *usb_context,
+                     libusb_device_handle *usb_handle) {
+  if ((*ftdi = ftdi_new()) == 0) {
     fprintf(stderr, "ftdi_new failed\n");
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+    return -1;
   }
 
-  version = ftdi_get_library_version();
+  struct ftdi_version_info version = ftdi_get_library_version();
   fprintf(stderr,
           "Initialized libftdi %s (major: %d, minor: %d, micro: %d, snapshot "
           "ver: %s)\n",
@@ -94,64 +52,66 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Detached kernel driver\n");
   }
 
-  if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_handle, &desc) <
-      0) {
+  struct libusb_device_descriptor desc;
+  libusb_get_device_descriptor(libusb_get_device(usb_handle), &desc);
+
+  if (ftdi_usb_open_from_wrapped_device(*ftdi, usb_context, usb_handle,
+                                        &desc) < 0) {
     fprintf(stderr, "ftdi_usb_open_from_wrapped_device failed\n");
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+    ftdi_free(*ftdi);
+    return -1;
   }
 
-  if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
+  if (ftdi_set_baudrate(*ftdi, BAUDRATE) < 0) {
     fprintf(stderr, "ftdi_set_baudrate failed: %s\n",
-            ftdi_get_error_string(ftdi));
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+            ftdi_get_error_string(*ftdi));
+    ftdi_free(*ftdi);
+    return -1;
   }
-  if (ftdi_set_line_property(ftdi, BITS, STOP_BIT, PARITY) < 0) {
+  if (ftdi_set_line_property(*ftdi, BITS, STOP_BIT, PARITY) < 0) {
     fprintf(stderr, "ftdi_set_line_property failed: %s\n",
-            ftdi_get_error_string(ftdi));
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+            ftdi_get_error_string(*ftdi));
+    ftdi_free(*ftdi);
+    return -1;
   }
-  if (ftdi_setflowctrl(ftdi, FLOW_CTRL) < 0) {
+  if (ftdi_setflowctrl(*ftdi, FLOW_CTRL) < 0) {
     fprintf(stderr, "ftdi_setflowctrl failed: %s\n",
-            ftdi_get_error_string(ftdi));
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+            ftdi_get_error_string(*ftdi));
+    ftdi_free(*ftdi);
+    return -1;
   }
 
-  if (ftdi_set_latency_timer(ftdi, LATENCY_TIMER) < 0) {
+  if (ftdi_set_latency_timer(*ftdi, LATENCY_TIMER) < 0) {
     fprintf(stderr, "ftdi_set_latency_timer failed: %s\n",
-            ftdi_get_error_string(ftdi));
-    ftdi_free(ftdi);
-    libusb_close(usb_handle); // This line seems to have a typo, assuming it
-                              // should be usb_handle
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
+            ftdi_get_error_string(*ftdi));
+    ftdi_free(*ftdi);
+    return -1;
   }
 
-  pid = setup_pty(&pty_master);
-  if (pid < 0) {
+  return 0;
+}
+
+static void cleanup(struct ftdi_context *ftdi, libusb_context *usb_context,
+                    libusb_device_handle *usb_handle, Queue *write_queue) {
+  if (write_queue) {
+    queue_destroy(write_queue);
+  }
+  if (ftdi) {
     ftdi->usb_dev = NULL;
     ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
   }
+  if (usb_handle) {
+    libusb_close(usb_handle);
+  }
+  if (usb_context) {
+    libusb_exit(usb_context);
+  }
+}
 
-  fprintf(stderr, "Starting shell...\n");
-
+static void main_loop(libusb_context *usb_context, struct ftdi_context *ftdi,
+                      int pty_master, Queue *write_queue) {
   struct ftdi_transfer_control *write_tc = NULL;
   unsigned char read_buf[BUFFER_SIZE];
-  Queue *write_queue = queue_create();
 
   while (1) {
     fd_set read_fds, write_fds, except_fds;
@@ -178,7 +138,7 @@ int main(int argc, char **argv) {
     }
 
     tv.tv_sec = 0;
-    tv.tv_usec = SELECT_TIMEOUT_US; // 10ms timeout
+    tv.tv_usec = SELECT_TIMEOUT_US;
 
     int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
@@ -215,8 +175,6 @@ int main(int argc, char **argv) {
         if (!write_tc) {
           fprintf(stderr, "ftdi_write_data_submit failed\n");
         }
-        // The FTDI library takes ownership of the buffer and will free it,
-        // so we only need to free the queue node itself.
         free(node);
       }
     }
@@ -242,14 +200,76 @@ int main(int argc, char **argv) {
       libusb_free_pollfds(pollfds);
     }
   }
+}
 
-    fprintf(stderr, "Shell exited.\n");
 
-    queue_destroy(write_queue);
-    ftdi->usb_dev = NULL;
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
+int main(int argc, char **argv) {
+  libusb_context *usb_context;
+  libusb_device_handle *usb_handle;
+  libusb_device *usb_dev;
+  struct libusb_device_descriptor desc;
+  unsigned char buffer[256];
+  int fd;
 
-    return EXIT_SUCCESS;
+  struct ftdi_context *ftdi;
+  int pty_master;
+  pid_t pid;
+  Queue *write_queue = NULL;
+
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s <file_descriptor>\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+
+  if (sscanf(argv[1], "%d", &fd) != 1) {
+    fprintf(stderr, "Invalid file descriptor: %s\n", argv[1]);
+    return EXIT_FAILURE;
+  }
+
+  if (init_usb(&usb_context, &usb_handle, fd) != 0) {
+    return EXIT_FAILURE;
+  }
+
+  usb_dev = libusb_get_device(usb_handle);
+  if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
+    fprintf(stderr, "libusb_get_device_descriptor failed\n");
+    cleanup(NULL, usb_context, usb_handle, NULL);
+    return EXIT_FAILURE;
+  }
+
+  fprintf(stderr, "Vendor ID: %04x\n", desc.idVendor);
+  fprintf(stderr, "Product ID: %04x\n", desc.idProduct);
+
+  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iManufacturer, buffer,
+                                         256) >= 0) {
+    fprintf(stderr, "Manufacturer: %s\n", buffer);
+  }
+  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iProduct, buffer,
+                                         256) >= 0) {
+    fprintf(stderr, "Product: %s\n", buffer);
+  }
+  if (libusb_get_string_descriptor_ascii(usb_handle, desc.iSerialNumber, buffer,
+                                         256) >= 0) {
+    fprintf(stderr, "Serial No: %s\n", buffer);
+  }
+
+  if (init_ftdi(&ftdi, usb_context, usb_handle) != 0) {
+    cleanup(NULL, usb_context, usb_handle, NULL);
+    return EXIT_FAILURE;
+  }
+
+  pid = setup_pty(&pty_master);
+  if (pid < 0) {
+    cleanup(ftdi, usb_context, usb_handle, NULL);
+    return EXIT_FAILURE;
+  }
+
+  fprintf(stderr, "Starting shell...\n");
+  write_queue = queue_create();
+
+  main_loop(usb_context, ftdi, pty_master, write_queue);
+
+  fprintf(stderr, "Shell exited.\n");
+  cleanup(ftdi, usb_context, usb_handle, write_queue);
+  return EXIT_SUCCESS;
 }
