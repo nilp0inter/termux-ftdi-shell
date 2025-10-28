@@ -1,0 +1,16 @@
+control:
+  Package: termux-ftdi-shell
+  Version: # To be filled by CI
+  Architecture: # To be filled by CI
+  Maintainer: nilp0inter
+  Depends: libusb
+  Homepage: https://github.com/nilp0inter/termux-ftdi-shell
+  Description: |
+    A command-line shell on a non-rooted Android device through an FTDI USB-to-serial adapter.
+
+installation_prefix: /data/data/com.termux/files/usr
+
+data_files:
+  bin/termux-ftdi-shell:
+    source: src/termux-ftdi-shell
+    perm: "755"
