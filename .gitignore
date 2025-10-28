@@ -128,3 +128,12 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# CI build artifacts
+toolchain.cmake
+libftdi/
+libusb/
+local/
+*.deb
+repo_input/
+repo_output/

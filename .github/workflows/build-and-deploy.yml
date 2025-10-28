@@ -33,8 +33,11 @@ jobs:
             libusb-1.0-0-dev \
             pkg-config \
             gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu
-          pip install termux-create-package termux-apt-repo
+            g++-aarch64-linux-gnu \
+            autoconf \
+            automake \
+            libtool
+          pip install termux-create-package termux-apt-repo ruamel.yaml
 
       - name: Create Toolchain File for Cross-compilation
         run: |
@@ -43,15 +46,28 @@ jobs:
           echo "set(CMAKE_C_COMPILER ${{ matrix.arch }}-linux-gnu-gcc)" >> toolchain.cmake
           echo "set(CMAKE_CXX_COMPILER ${{ matrix.arch }}-linux-gnu-g++)" >> toolchain.cmake
 
+      - name: Build libusb Statically
+        run: |
+          git clone https://github.com/libusb/libusb.git
+          cd libusb
+          ./autogen.sh --host=${{ matrix.arch }}-linux-gnu \
+            --prefix=${{ github.workspace }}/local \
+            --enable-static \
+            --disable-shared \
+            --disable-udev
+          make install
+
       - name: Build libftdi Statically
         run: |
-          git clone git://developer.intra2net.com/libftdi
+          git clone https://github.com/lipro/libftdi.git
           mkdir -p libftdi/build
           cd libftdi/build
           cmake .. \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/local \
             -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/toolchain.cmake \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLIBUSB_INCLUDE_DIR=${{ github.workspace }}/local/include/libusb-1.0 \
+            -DLIBUSB_LIBRARIES=${{ github.workspace }}/local/lib/libusb-1.0.a
           make install
         env:
           ARCH: ${{ matrix.arch }}
