@@ -1,0 +1,90 @@
+name: Build and Deploy Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [aarch64] # Add other architectures here later: arm, x86_64, i686
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            make \
+            libusb-1.0-0-dev \
+            pkg-config \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
+          pip install termux-create-package termux-apt-repo
+
+      - name: Create Toolchain File for Cross-compilation
+        run: |
+          echo "set(CMAKE_SYSTEM_NAME Linux)" > toolchain.cmake
+          echo "set(CMAKE_SYSTEM_PROCESSOR ${{ matrix.arch }})" >> toolchain.cmake
+          echo "set(CMAKE_C_COMPILER ${{ matrix.arch }}-linux-gnu-gcc)" >> toolchain.cmake
+          echo "set(CMAKE_CXX_COMPILER ${{ matrix.arch }}-linux-gnu-g++)" >> toolchain.cmake
+
+      - name: Build libftdi Statically
+        run: |
+          git clone git://developer.intra2net.com/libftdi
+          mkdir -p libftdi/build
+          cd libftdi/build
+          cmake .. \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/local \
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/toolchain.cmake \
+            -DBUILD_SHARED_LIBS=OFF
+          make install
+        env:
+          ARCH: ${{ matrix.arch }}
+
+      - name: Build Project
+        run: |
+          ./autogen.sh
+          ./configure --host=${{ matrix.arch }}-linux-gnu
+          make
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/local/lib/pkgconfig
+
+      - name: Set Package Version
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed 's/refs\/tags\/v//')
+          sed -i "s/Version:.*/Version: $VERSION/" package-manifest.yml
+          sed -i "s/Architecture:.*/Architecture: ${{ matrix.arch }}/" package-manifest.yml
+
+      - name: Create .deb Package
+        run: |
+          termux-create-package package-manifest.yml
+
+      - name: Setup APT Repository
+        run: |
+          mkdir -p repo_input
+          cp *.deb repo_input/
+          termux-apt-repo repo_input repo_output stable main
+
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./repo_output
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1

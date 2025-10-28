@@ -4,9 +4,7 @@ AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 AC_PROG_CC
-
-AC_CHECK_LIB([ftdi1], [ftdi_new])
-AC_CHECK_LIB([usb-1.0], [libusb_init])
+PKG_CHECK_MODULES([DEPS], [libftdi1, libusb-1.0])
 
 AC_ARG_WITH([baudrate],
   [AS_HELP_STRING([--with-baudrate], [Set the baudrate])],
