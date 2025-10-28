@@ -33,8 +33,11 @@ jobs:
             libusb-1.0-0-dev \
             pkg-config \
             gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu
-          pip install termux-create-package termux-apt-repo
+            g++-aarch64-linux-gnu \
+            autoconf \
+            automake \
+            libtool
+          pip install termux-create-package termux-apt-repo ruamel.yaml
 
       - name: Create Toolchain File for Cross-compilation
         run: |
@@ -43,15 +46,42 @@ jobs:
           echo "set(CMAKE_C_COMPILER ${{ matrix.arch }}-linux-gnu-gcc)" >> toolchain.cmake
           echo "set(CMAKE_CXX_COMPILER ${{ matrix.arch }}-linux-gnu-g++)" >> toolchain.cmake
 
+      - name: Build libusb Statically
+        run: |
+          git clone https://github.com/libusb/libusb.git
+          cd libusb
+          ./autogen.sh --host=${{ matrix.arch }}-linux-gnu \
+            --prefix=${{ github.workspace }}/local \
+            --enable-static \
+            --disable-shared \
+            --disable-udev
+          make install
+
+      - name: Build libconfuse Statically
+        run: |
+          curl -L -o confuse-2.5.tar.gz https://www.intra2net.com/en/developer/libftdi/download/confuse-2.5.tar.gz
+          tar xzf confuse-2.5.tar.gz
+          cd confuse-2.5
+          ./configure --host=${{ matrix.arch }}-linux-gnu \
+            --prefix=${{ github.workspace }}/local \
+            --enable-static \
+            --disable-shared
+          make install
+
       - name: Build libftdi Statically
         run: |
-          git clone git://developer.intra2net.com/libftdi
-          mkdir -p libftdi/build
-          cd libftdi/build
+          curl -L -o libftdi1-1.5.tar.bz2 https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
+          tar xjf libftdi1-1.5.tar.bz2
+          mkdir -p libftdi1-1.5/build
+          cd libftdi1-1.5/build
           cmake .. \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/local \
             -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/toolchain.cmake \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLIBUSB_INCLUDE_DIR=${{ github.workspace }}/local/include/libusb-1.0 \
+            -DLIBUSB_LIBRARIES=${{ github.workspace }}/local/lib/libusb-1.0.a \
+            -DCONFUSE_INCLUDE_DIR=${{ github.workspace }}/local/include \
+            -DCONFUSE_LIBRARY=${{ github.workspace }}/local/lib/libconfuse.a
           make install
         env:
           ARCH: ${{ matrix.arch }}
