@@ -81,7 +81,7 @@ jobs:
           termux-apt-repo repo_input repo_output stable main
 
       - name: Upload GitHub Pages Artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./repo_output
 
