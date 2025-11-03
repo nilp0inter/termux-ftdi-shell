@@ -2,6 +2,7 @@
 #include "pty_utils.h"
 #include "queue.h"
 #include "config.h"
+#include "usb_utils.h"
 #include <assert.h>
 #include <errno.h>
 #include <ftdi.h>
@@ -32,13 +33,38 @@ int main(int argc, char **argv) {
 
   init_config(&config);
 
-  if (argc < 2) {
-    fprintf(stderr, "Usage: %s <file_descriptor>\n", argv[0]);
-    return EXIT_FAILURE;
-  }
+  if (argc > 1) {
+    if (sscanf(argv[1], "%d", &fd) != 1) {
+      fprintf(stderr, "Invalid file descriptor: %s\n", argv[1]);
+      return EXIT_FAILURE;
+    }
+  } else {
+    char *usb_dev_env = getenv("TERMUX_FTDI_USBDEV");
+    if (usb_dev_env == NULL) {
+      fprintf(stderr, "Error: TERMUX_FTDI_USBDEV not set\n");
+      return EXIT_FAILURE;
+    }
 
-  if (sscanf(argv[1], "%d", &fd) != 1) {
-    fprintf(stderr, "Invalid file descriptor: %s\n", argv[1]);
+    int vendor_id, product_id;
+    if (sscanf(usb_dev_env, "%x:%x", &vendor_id, &product_id) != 2) {
+      fprintf(stderr, "Error: Invalid format for TERMUX_FTDI_USBDEV. "
+                      "Expected VENDOR_ID:PRODUCT_ID\n");
+      return EXIT_FAILURE;
+    }
+
+    char device_path[256];
+    if (find_usb_device(vendor_id, product_id, device_path,
+                        sizeof(device_path))) {
+      fprintf(stderr, "Error: USB device %04x:%04x not found\n", vendor_id,
+              product_id);
+      return EXIT_FAILURE;
+    }
+
+    char command[512];
+    snprintf(command, sizeof(command), "termux-usb -r -e %s %s", argv[0],
+             device_path);
+    execl("/bin/sh", "sh", "-c", command, NULL);
+    perror("execl");
     return EXIT_FAILURE;
   }
 
