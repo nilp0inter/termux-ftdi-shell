@@ -7,6 +7,7 @@
 int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
                                       libusb_context *usb_context,
                                       libusb_device_handle *handle,
-                                      struct libusb_device_descriptor *desc);
+                                      struct libusb_device_descriptor *desc,
+                                      int baudrate);
 
 #endif // FTD_UTILS_H
