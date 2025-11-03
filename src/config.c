@@ -58,20 +58,23 @@ static int map_flow_ctrl_to_enum(const char *value) {
   }
 }
 
-#define STRINGIFY(x) #x
-#define TO_STRING(x) STRINGIFY(x)
-
 void init_config(struct app_config *config) {
   config->baudrate =
       get_env_or_default_long("TERMUX_FTDI_BAUDRATE", BAUDRATE);
-  config->bits =
-      map_bits_to_enum(get_env_or_default_string("TERMUX_FTDI_BITS", TO_STRING(BITS)));
-  config->stop_bit = map_stop_bit_to_enum(
-      get_env_or_default_string("TERMUX_FTDI_STOP_BIT", TO_STRING(STOP_BIT)));
-  config->parity = map_parity_to_enum(
-      get_env_or_default_string("TERMUX_FTDI_PARITY", TO_STRING(PARITY)));
-  config->flow_ctrl = map_flow_ctrl_to_enum(
-      get_env_or_default_string("TERMUX_FTDI_FLOW_CTRL", TO_STRING(FLOW_CTRL)));
+
+  const char *bits_str = getenv("TERMUX_FTDI_BITS");
+  config->bits = bits_str ? map_bits_to_enum(bits_str) : BITS;
+
+  const char *stop_bit_str = getenv("TERMUX_FTDI_STOP_BIT");
+  config->stop_bit = stop_bit_str ? map_stop_bit_to_enum(stop_bit_str) : STOP_BIT;
+
+  const char *parity_str = getenv("TERMUX_FTDI_PARITY");
+  config->parity = parity_str ? map_parity_to_enum(parity_str) : PARITY;
+
+  const char *flow_ctrl_str = getenv("TERMUX_FTDI_FLOW_CTRL");
+  config->flow_ctrl =
+      flow_ctrl_str ? map_flow_ctrl_to_enum(flow_ctrl_str) : FLOW_CTRL;
+
   config->latency_timer =
       get_env_or_default_long("TERMUX_FTDI_LATENCY_TIMER", LATENCY_TIMER);
   config->buffer_size =
