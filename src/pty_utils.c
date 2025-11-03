@@ -6,7 +6,8 @@
 #include <termios.h>
 #include <unistd.h>
 
-pid_t setup_pty(int *pty_master) {
+pid_t setup_pty(int *pty_master, const char *shell_path,
+                  const char *shell_args) {
   pid_t pid = forkpty(pty_master, NULL, NULL, NULL);
   if (pid < 0) {
     perror("forkpty");
@@ -26,8 +27,8 @@ pid_t setup_pty(int *pty_master) {
       return -1;
     }
   } else if (pid == 0) {
-    char *shell = SHELL_PATH;
-    char *args[] = {shell, SHELL_ARGS, NULL};
+    char *shell = (char *)shell_path;
+    char *args[] = {shell, (char *)shell_args, NULL};
     execv(shell, args);
     perror("execv");
     exit(1);

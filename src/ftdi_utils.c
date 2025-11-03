@@ -6,7 +6,8 @@
 int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
                                       libusb_context *usb_context,
                                       libusb_device_handle *handle,
-                                      struct libusb_device_descriptor *desc) {
+                                      struct libusb_device_descriptor *desc,
+                                      int baudrate) {
   if (ftdi == NULL)
     return -8;
 
@@ -72,7 +73,7 @@ int ftdi_usb_open_from_wrapped_device(struct ftdi_context *ftdi,
   }
   ftdi->max_packet_size = packet_size;
 
-  if (ftdi_set_baudrate(ftdi, BAUDRATE) != 0) {
+  if (ftdi_set_baudrate(ftdi, baudrate) != 0) {
     fprintf(stderr, "ftdi_set_baudrate() failed\n");
     return -7;
   }

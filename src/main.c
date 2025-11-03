@@ -1,7 +1,7 @@
-#include "config.h"
 #include "ftdi_utils.h"
 #include "pty_utils.h"
 #include "queue.h"
+#include "config.h"
 #include <assert.h>
 #include <errno.h>
 #include <ftdi.h>
@@ -28,6 +28,9 @@ int main(int argc, char **argv) {
   struct ftdi_version_info version;
   int pty_master;
   pid_t pid;
+  struct app_config config;
+
+  init_config(&config);
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <file_descriptor>\n", argv[0]);
@@ -94,8 +97,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Detached kernel driver\n");
   }
 
-  if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_handle, &desc) <
-      0) {
+  if (ftdi_usb_open_from_wrapped_device(ftdi, usb_context, usb_handle, &desc,
+                                      config.baudrate) < 0) {
     fprintf(stderr, "ftdi_usb_open_from_wrapped_device failed\n");
     ftdi_free(ftdi);
     libusb_close(usb_handle);
@@ -103,15 +106,8 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (ftdi_set_baudrate(ftdi, BAUDRATE) < 0) {
-    fprintf(stderr, "ftdi_set_baudrate failed: %s\n",
-            ftdi_get_error_string(ftdi));
-    ftdi_free(ftdi);
-    libusb_close(usb_handle);
-    libusb_exit(usb_context);
-    return EXIT_FAILURE;
-  }
-  if (ftdi_set_line_property(ftdi, BITS, STOP_BIT, PARITY) < 0) {
+  if (ftdi_set_line_property(ftdi, config.bits, config.stop_bit,
+                             config.parity) < 0) {
     fprintf(stderr, "ftdi_set_line_property failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -119,7 +115,7 @@ int main(int argc, char **argv) {
     libusb_exit(usb_context);
     return EXIT_FAILURE;
   }
-  if (ftdi_setflowctrl(ftdi, FLOW_CTRL) < 0) {
+  if (ftdi_setflowctrl(ftdi, config.flow_ctrl) < 0) {
     fprintf(stderr, "ftdi_setflowctrl failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -128,7 +124,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (ftdi_set_latency_timer(ftdi, LATENCY_TIMER) < 0) {
+  if (ftdi_set_latency_timer(ftdi, config.latency_timer) < 0) {
     fprintf(stderr, "ftdi_set_latency_timer failed: %s\n",
             ftdi_get_error_string(ftdi));
     ftdi_free(ftdi);
@@ -138,7 +134,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  pid = setup_pty(&pty_master);
+  pid = setup_pty(&pty_master, config.shell_path, config.shell_args);
   if (pid < 0) {
     ftdi->usb_dev = NULL;
     ftdi_free(ftdi);
@@ -150,7 +146,7 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Starting shell...\n");
 
   struct ftdi_transfer_control *write_tc = NULL;
-  unsigned char read_buf[BUFFER_SIZE];
+  unsigned char read_buf[config.buffer_size];
   Queue *write_queue = queue_create();
 
   while (1) {
@@ -178,7 +174,7 @@ int main(int argc, char **argv) {
     }
 
     tv.tv_sec = 0;
-    tv.tv_usec = SELECT_TIMEOUT_US; // 10ms timeout
+    tv.tv_usec = config.select_timeout_us; // 10ms timeout
 
     int activity = select(max_fd + 1, &read_fds, &write_fds, &except_fds, &tv);
 
@@ -196,7 +192,7 @@ int main(int argc, char **argv) {
     }
 
     if (FD_ISSET(pty_master, &read_fds)) {
-      char pty_buf[BUFFER_SIZE];
+      char pty_buf[config.buffer_size];
       int pty_ret = read(pty_master, pty_buf, sizeof(pty_buf));
       if (pty_ret > 0) {
         if (queue_enqueue(write_queue, (unsigned char *)pty_buf, pty_ret) !=

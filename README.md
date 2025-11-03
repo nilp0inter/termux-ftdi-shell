@@ -34,6 +34,23 @@ To run the application, you can use the provided example script. This script wil
 ./run-termux-ftdi-shell
 ```
 
+### Environment Variables
+
+You can set the following environment variables to configure the application at runtime:
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `TERMUX_FTDI_BAUDRATE` | Set the baudrate | `115200` |
+| `TERMUX_FTDI_BITS` | Set the bits | `8` |
+| `TERMUX_FTDI_STOP_BIT` | Set the stop bit | `1` |
+| `TERMUX_FTDI_PARITY` | Set the parity | `NONE` |
+| `TERMUX_FTDI_FLOW_CTRL` | Set the flow control | `SIO_DISABLE_FLOW_CTRL` |
+| `TERMUX_FTDI_LATENCY_TIMER` | Set the latency timer | `1` |
+| `TERMUX_FTDI_BUFFER_SIZE` | Set the buffer size | `1024` |
+| `TERMUX_FTDI_SELECT_TIMEOUT_US` | Set the select timeout in microseconds | `10000` |
+| `TERMUX_FTDI_SHELL_PATH` | Set the shell path | `/bin/bash` |
+| `TERMUX_FTDI_SHELL_ARGS` | Set the shell arguments | `-i` |
+
 ## Building from Source
 
 ### Setup
